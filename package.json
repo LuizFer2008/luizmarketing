@@ -1,0 +1,14 @@
+{
+  "name": "loja-virtual",
+  "version": "1.0.0",
+  "description": "Loja virtual simples com HTML, CSS, JS e Node.js",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "mongoose": "^6.0.0"
+  }
+}

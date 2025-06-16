@@ -1,0 +1,122 @@
+// server.js
+const express = require('express');
+const mongoose = require('mongoose');
+const path = require('path');
+const app = express();
+const PORT = 3000;
+
+// Conectar ao MongoDB
+mongoose.connect('mongodb://localhost:27017/lojavirtual', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log('✅ Conectado ao MongoDB'))
+  .catch(err => console.error('Erro ao conectar:', err));
+
+// Modelos
+const Produto = mongoose.model('Produto', new mongoose.Schema({
+  nome: String,
+  preco: Number
+}));
+
+const Pedido = mongoose.model('Pedido', new mongoose.Schema({
+  itens: Array,
+  data: { type: Date, default: Date.now }
+}));
+
+// Middleware
+app.use(express.json());
+
+// Servir HTML na rota raiz
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+      <title>Loja Virtual</title>
+      <style>
+        body { font-family: Arial; padding: 20px; }
+        #produtos { display: flex; gap: 20px; flex-wrap: wrap; }
+        .produto { border: 1px solid #ccc; padding: 10px; width: 150px; }
+      </style>
+    </head>
+    <body>
+      <h1>Minha Loja Virtual</h1>
+      <div id="produtos"></div>
+      <h2>Carrinho</h2>
+      <ul id="carrinho"></ul>
+      <button onclick="finalizarCompra()">Finalizar Compra</button>
+
+      <script>
+        let carrinho = [];
+
+        async function carregarProdutos() {
+          const res = await fetch('/api/produtos');
+          const produtos = await res.json();
+          const container = document.getElementById('produtos');
+          container.innerHTML = '';
+          produtos.forEach(prod => {
+            const div = document.createElement('div');
+            div.className = 'produto';
+            div.innerHTML = \`
+              <h3>\${prod.nome}</h3>
+              <p>R$ \${prod.preco}</p>
+              <button onclick='adicionar(\${JSON.stringify(prod)})'>Adicionar</button>
+            \`;
+            container.appendChild(div);
+          });
+        }
+
+        function adicionar(produto) {
+          carrinho.push(produto);
+          atualizarCarrinho();
+        }
+
+        function atualizarCarrinho() {
+          const lista = document.getElementById('carrinho');
+          lista.innerHTML = '';
+          carrinho.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = \`\${item.nome} - R$\${item.preco}\`;
+            lista.appendChild(li);
+          });
+        }
+
+        function finalizarCompra() {
+          fetch('/api/pedido', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itens: carrinho })
+          }).then(res => res.json())
+            .then(() => {
+              alert('Pedido realizado!');
+              carrinho = [];
+              atualizarCarrinho();
+            });
+        }
+
+        carregarProdutos();
+      </script>
+    </body>
+    </html>
+  `);
+});
+
+// API: listar produtos
+app.get('/api/produtos', async (req, res) => {
+  const produtos = await Produto.find();
+  res.json(produtos);
+});
+
+// API: salvar pedido
+app.post('/api/pedido', async (req, res) => {
+  const pedido = new Pedido({ itens: req.body.itens });
+  await pedido.save();
+  res.json({ sucesso: true });
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+});
